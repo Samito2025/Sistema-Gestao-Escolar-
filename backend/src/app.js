@@ -3,6 +3,10 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
+import authRoutes from './routes/authRoutes.js';
+import userRoutes from './routes/userRoutes.js';
+import schoolRoutes from './routes/schoolRoutes.js';
+import studentRoutes from './routes/studentRoutes.js';
 
 const app = express();
 
@@ -22,8 +26,8 @@ app.use(cors({
 
 // 🚦 Rate Limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 100, // 100 requisições por IP
+  windowMs: 15 * 60 * 1000,
+  max: 100,
   message: 'Muitas requisições. Tente novamente mais tarde.',
   standardHeaders: true,
   legacyHeaders: false,
@@ -44,7 +48,7 @@ app.get('/health', (req, res) => {
   });
 });
 
-// 🔗 Rotas
+// 🔗 API Routes
 app.get('/api', (req, res) => {
   res.json({
     message: 'Sistema de Gestão Escolar - API v1.0',
@@ -54,11 +58,16 @@ app.get('/api', (req, res) => {
       auth: '/api/auth',
       users: '/api/users',
       schools: '/api/schools',
-      students: '/api/students',
-      reports: '/api/reports'
+      students: '/api/students'
     }
   });
 });
+
+// Rotas
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/schools', schoolRoutes);
+app.use('/api/students', studentRoutes);
 
 // ❌ 404 Handler
 app.use((req, res) => {

@@ -1,0 +1,269 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ========== ENUMS ==========
+
+enum UserRole {
+  ADMIN_DISTRITAL
+  DIRETOR_ESCOLA
+  PROFESSOR_OPERADOR
+}
+
+enum UserStatus {
+  ATIVO
+  INATIVO
+  SUSPENSO
+}
+
+enum GeneroEnum {
+  MASCULINO
+  FEMININO
+  OUTRO
+}
+
+enum PeriodoEnum {
+  PRIMEIRO_TERMO
+  SEGUNDO_TERMO
+  TERCEIRO_TERMO
+  MENSAL
+  SEMESTRAL
+  ANUAL
+}
+
+enum NivelCriticidade {
+  BAIXA
+  MEDIA
+  ALTA
+  CRITICA
+}
+
+enum ReportType {
+  MENSAL
+  TRIMESTRAL
+  ANUAL
+  DISTRITAL
+  ESPECIAL
+}
+
+enum StatusIntervencao {
+  PENDENTE
+  EM_PROGRESSO
+  CONCLUIDA
+}
+
+enum ProvinciaEnum {
+  SOFALA
+  MANICA
+  INHAMBANE
+  GAZA
+  MAPUTO_CIDADE
+  MAPUTO_PROVINCIA
+  ZAMBÉZIA
+  NAMPULA
+  NIASSA
+  TETE
+}
+
+// ========== MODELS ==========
+
+model User {
+  id            Int      @id @default(autoincrement())
+  email         String   @unique
+  username      String   @unique
+  senha         String
+  nome          String
+  papel         UserRole
+  status        UserStatus @default(ATIVO)
+  escolaId      Int?
+  escola        School?  @relation(fields: [escolaId], references: [id], onDelete: SetNull)
+  ultimoLogin   DateTime?
+  criadoEm      DateTime @default(now())
+  atualizadoEm  DateTime @updatedAt
+
+  @@index([escolaId])
+}
+
+model School {
+  id              Int     @id @default(autoincrement())
+  nome            String
+  codigo          String  @unique
+  localidade      String
+  distrito        String
+  provincia       ProvinciaEnum
+  latitude        Float?
+  longitude       Float?
+  contacto        String?
+  email           String?
+  diretorId       Int?
+  director        User?   @relation(fields: [diretorId], references: [id], onDelete: SetNull)
+  criadoEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
+
+  // Relations
+  usuarios        User[]
+  alunos          Student[]
+  professores     Teacher[]
+  turmas          Class[]
+  infraestrutura  Infrastructure[]
+  relatorios      Report[]
+  intervencoes    Intervention[]
+
+  @@index([diretorId])
+}
+
+model Student {
+  id            Int     @id @default(autoincrement())
+  nomeCompleto  String
+  genero        GeneroEnum
+  dataNascimento DateTime
+  bi            String  @unique
+  turmaId       Int
+  turma         Class   @relation(fields: [turmaId], references: [id], onDelete: Cascade)
+  escolaId      Int
+  escola        School  @relation(fields: [escolaId], references: [id], onDelete: Cascade)
+  dataMatricula DateTime @default(now())
+  status        String  @default("ATIVO")
+  criadoEm      DateTime @default(now())
+  atualizadoEm  DateTime @updatedAt
+
+  // Relations
+  frequencia    Attendance[]
+  desempenho    Performance[]
+
+  @@index([turmaId, escolaId])
+}
+
+model Teacher {
+  id            Int     @id @default(autoincrement())
+  nome          String
+  email         String  @unique
+  disciplina    String
+  qualificacao  String
+  escolaId      Int
+  escola        School  @relation(fields: [escolaId], references: [id], onDelete: Cascade)
+  status        String  @default("ATIVO")
+  criadoEm      DateTime @default(now())
+  atualizadoEm  DateTime @updatedAt
+
+  @@index([escolaId])
+}
+
+model Class {
+  id            Int     @id @default(autoincrement())
+  nivel         Int     // 1 até 7
+  letra         String  // A, B, C, etc
+  turno         String  // Matutino, Vespertino, Noturno
+  escolaId      Int
+  escola        School  @relation(fields: [escolaId], references: [id], onDelete: Cascade)
+  professorId   Int?
+  professor     Teacher?
+  criadoEm      DateTime @default(now())
+  atualizadoEm  DateTime @updatedAt
+
+  // Relations
+  alunos        Student[]
+
+  @@unique([escolaId, nivel, letra, turno])
+  @@index([escolaId])
+}
+
+model Attendance {
+  id            Int     @id @default(autoincrement())
+  alunoId       Int
+  aluno         Student @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+  data          DateTime
+  presente      Boolean
+  justificacao  String?
+  periodo       PeriodoEnum
+  criadoEm      DateTime @default(now())
+  atualizadoEm  DateTime @updatedAt
+
+  @@index([alunoId])
+}
+
+model Performance {
+  id            Int     @id @default(autoincrement())
+  alunoId       Int
+  aluno         Student @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+  periodo       PeriodoEnum
+  disciplina    String
+  nota          Float
+  status        String  // APROVADO, REPROVADO, SUSPENSO
+  feedback      String?
+  criadoEm      DateTime @default(now())
+  atualizadoEm  DateTime @updatedAt
+
+  @@index([alunoId, periodo])
+}
+
+model Infrastructure {
+  id            Int     @id @default(autoincrement())
+  escolaId      Int
+  escola        School  @relation(fields: [escolaId], references: [id], onDelete: Cascade)
+  tipo          String  // Sala aula, lab, sanitário, etc
+  quantidade    Int
+  condicao      String  // BOM, REGULAR, PÉSSIMO
+  dataInspecao  DateTime
+  criadoEm      DateTime @default(now())
+  atualizadoEm  DateTime @updatedAt
+
+  @@index([escolaId])
+}
+
+model Report {
+  id            Int     @id @default(autoincrement())
+  tipo          ReportType
+  escolaId      Int
+  escola        School  @relation(fields: [escolaId], references: [id], onDelete: Cascade)
+  periodo       PeriodoEnum
+  conteudo      String? // URL do PDF/Excel
+  ciadoPor      Int
+  dataGeracao   DateTime @default(now())
+  criadoEm      DateTime @default(now())
+  atualizadoEm  DateTime @updatedAt
+
+  @@index([escolaId, tipo])
+}
+
+model Intervention {
+  id              Int     @id @default(autoincrement())
+  tipo            String
+  criticidade     NivelCriticidade
+  descricao       String
+  escolaId        Int?
+  escola          School? @relation(fields: [escolaId], references: [id], onDelete: SetNull)
+  alunoId         Int?
+  recomendacao    String
+  status          StatusIntervencao @default(PENDENTE)
+  criadoEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
+
+  @@index([escolaId])
+}
+
+model AuditLog {
+  id            Int     @id @default(autoincrement())
+  usuarioId     Int
+  acao          String
+  tabela        String
+  valoresAntigos String?
+  valoresNovos  String?
+  ip            String?
+  criadoEm      DateTime @default(now())
+}
+
+model Notification {
+  id            Int     @id @default(autoincrement())
+  usuarioId     Int
+  mensagem      String
+  tipo          String  // INFO, ALERTA, CRÍTICO
+  lida          Boolean @default(false)
+  criadoEm      DateTime @default(now())
+  atualizadoEm  DateTime @updatedAt
+}
